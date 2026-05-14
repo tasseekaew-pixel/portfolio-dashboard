@@ -10,12 +10,13 @@ import TabWatchlist from '@/components/TabWatchlist'
 import TabAnalysis from '@/components/TabAnalysis'
 import TabScout from '@/components/TabScout'
 import TabPlanner from '@/components/TabPlanner'
+import TabNews from '@/components/TabNews'
 
 export type QuoteMap = Record<string, {
   price: number; prev: number; pct: number; change: number; high: number; low: number;
 }>
 
-const TABS = ['Holdings','Allocation','Trends','Watchlist','Analysis','Scout','Buy planner'] as const
+const TABS = ['Holdings','Allocation','Trends','Watchlist','Analysis','Scout','Buy planner','News'] as const
 type Tab = typeof TABS[number]
 
 function fmt(n: number) {
@@ -173,6 +174,7 @@ export default function Dashboard() {
             {t}
             {t === 'Scout' && <span style={{ fontSize:10, background:'var(--purple)', color:'#fff', padding:'1px 6px', borderRadius:999, marginLeft:4 }}>8</span>}
             {t === 'Buy planner' && <span style={{ fontSize:10, background:'var(--green)', color:'#fff', padding:'1px 6px', borderRadius:999, marginLeft:4 }}>new</span>}
+            {t === 'News' && <span style={{ fontSize:10, background:'#d85a30', color:'#fff', padding:'1px 6px', borderRadius:999, marginLeft:4 }}>live</span>}
           </button>
         ))}
       </div>
@@ -185,6 +187,7 @@ export default function Dashboard() {
       {tab === 'Analysis'    && <TabAnalysis quotes={quotes} loading={loading} />}
       {tab === 'Scout'       && <TabScout quotes={quotes} loading={loading} />}
       {tab === 'Buy planner' && <TabPlanner quotes={quotes} loading={loading} />}
+      {tab === 'News'        && <TabNews quotes={quotes} />}
     </div>
   )
 }
