@@ -3,12 +3,11 @@ import { NextRequest, NextResponse } from 'next/server'
 export const revalidate = 1800 // cache 30 min
 
 const GEMINI_KEY = process.env.GEMINI_API_KEY
-const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent'
 
 export async function POST(req: NextRequest) {
   if (!GEMINI_KEY || GEMINI_KEY === 'your_gemini_api_key_here') {
     return NextResponse.json(
-      { analysis: 'AI analysis unavailable — GEMINI_API_KEY not configured.' },
+      { analysis: 'AI analysis unavailable — GEMINI_API_KEY not configured in Vercel environment variables.' },
       { status: 200 }
     )
   }
@@ -35,31 +34,47 @@ Write a 3-4 sentence analysis covering:
 
 Be direct and specific. No bullet points. No financial advice disclaimers. No repetition of headlines.`
 
-    const res = await fetch(`${GEMINI_URL}?key=${GEMINI_KEY}`, {
+    // Use gemini-2.5-flash — free tier, 1500 req/day, no credit card
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`
+
+    const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type':    'application/json',
+        'x-goog-api-key':  GEMINI_KEY,
+      },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
           maxOutputTokens: 400,
-          temperature: 0.4,
+          temperature:     0.4,
         },
       }),
     })
 
     if (!res.ok) {
-      const err = await res.text()
-      console.error('Gemini API error:', res.status, err)
-      // Graceful fallback — still return 200 so UI shows a message
+      const errText = await res.text()
+      console.error(`Gemini ${res.status}:`, errText)
+
+      // Try to parse Gemini's error message for a friendlier response
+      let reason = `error ${res.status}`
+      try {
+        const errJson = JSON.parse(errText)
+        reason = errJson?.error?.message || reason
+      } catch {}
+
       return NextResponse.json(
-        { analysis: `AI analysis temporarily unavailable (${res.status}). Headlines above are still live.` },
+        { analysis: `AI analysis unavailable: ${reason}. Headlines above are still live.` },
         { status: 200 }
       )
     }
 
     const data = await res.json()
-    const analysis = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim()
-      || 'Analysis unavailable.'
+    const analysis = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim()
+
+    if (!analysis) {
+      return NextResponse.json({ analysis: 'Gemini returned an empty response. Headlines above are still live.' })
+    }
 
     return NextResponse.json({ analysis })
 
