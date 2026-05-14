@@ -66,40 +66,21 @@ function timeAgo(ts: number) {
   return Math.floor(diff / 86400) + 'd ago'
 }
 
-const ANALYSIS_PROMPT = (sym: string, name: string, articles: Article[]) => `
-You are a concise financial analyst focused on long-term investing (buy-and-hold, not trading).
-
-Here are recent news headlines and summaries for ${name} (${sym}) from multiple financial sources:
-
-${articles.slice(0, 8).map((a, i) =>
-  `${i + 1}. [${a.source.split('/')[0].trim()}] ${a.headline}${a.summary ? '\n   Summary: ' + a.summary.slice(0, 120) : ''}`
-).join('\n\n')}
-
-Write a 3-4 sentence analysis covering:
-1. The key theme(s) across these news items and what they mean for ${sym}'s long-term business
-2. Whether this news is bullish, bearish, or neutral for a patient long-term holder
-3. Any specific risk or opportunity worth monitoring over the next 6-12 months
-
-Be specific and direct. No bullet points. No financial advice disclaimers. No repetition of headlines.
-`.trim()
 
 async function analyzeWithClaude(sym: string, name: string, articles: Article[]): Promise<string> {
   if (!articles.length) return 'No recent news found across sources for this symbol.'
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    // Call our server-side route — avoids CORS and keeps the API key secure on the server
+    const res = await fetch('/api/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 350,
-        messages: [{ role: 'user', content: ANALYSIS_PROMPT(sym, name, articles) }],
-      }),
+      body: JSON.stringify({ sym, name, articles }),
     })
-    if (!res.ok) throw new Error(`Claude API ${res.status}`)
+    if (!res.ok) throw new Error(`Server error ${res.status}`)
     const data = await res.json()
-    return data.content?.[0]?.text || 'Analysis unavailable.'
+    return data.analysis || 'Analysis unavailable.'
   } catch (e: any) {
-    return `Analysis error: ${e.message}`
+    return `Analysis unavailable: ${e.message}`
   }
 }
 
