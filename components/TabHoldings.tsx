@@ -1,4 +1,5 @@
 'use client'
+import React from 'react'
 // components/TabHoldings.tsx
 import { HOLDINGS } from '@/lib/data'
 import type { QuoteMap } from '@/app/page'
@@ -8,8 +9,30 @@ function fp(n: number) { return (n>=0?'+':'') + n.toFixed(2) + '%' }
 function pc(n: number) { return n>=0 ? '#1d9e75' : '#d64045' }
 
 export default function TabHoldings({ quotes, loading }: { quotes: QuoteMap; loading: boolean }) {
-  const stocks = HOLDINGS.filter(h => h.type === 'stock')
-  const etfs   = HOLDINGS.filter(h => h.type === 'etf')
+  // Merge static HOLDINGS with any custom purchases recorded in Buy Planner
+  const [customH, setCustomH] = React.useState<{sym:string;name:string;shares:number;type:string}[]>([])
+  React.useEffect(() => {
+    try {
+      const s = localStorage.getItem('portfolio_custom_holdings_v1')
+      if (s) setCustomH(JSON.parse(s))
+    } catch {}
+  }, [])
+
+  // Build merged holdings — static + custom (add shares if same symbol)
+  const merged = [...HOLDINGS]
+  customH.forEach(ch => {
+    const existing = merged.find(h => h.sym === ch.sym)
+    if (existing) {
+      // Don't mutate, create new array with updated shares
+      const idx = merged.indexOf(existing)
+      merged[idx] = { ...existing, shares: parseFloat((existing.shares + ch.shares).toFixed(6)) }
+    } else {
+      merged.push({ sym: ch.sym, shares: ch.shares, type: ch.type as 'stock'|'etf', name: ch.name })
+    }
+  })
+
+  const stocks = merged.filter(h => h.type === 'stock')
+  const etfs   = merged.filter(h => h.type === 'etf')
   const stockTotal = stocks.reduce((s,h) => s + (quotes[h.sym]?.price ?? 0) * h.shares, 0)
 
   function StockCard({ h }: { h: typeof HOLDINGS[0] }) {
