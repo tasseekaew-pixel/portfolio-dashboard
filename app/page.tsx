@@ -227,7 +227,7 @@ export default function Dashboard() {
       {tab === 'Trends'      && <TabTrends    quotes={quotes} />}
       {tab === 'Watchlist'   && <TabWatchlist  quotes={quotes} loading={loading} />}
       {tab === 'Analysis'    && <TabAnalysis  quotes={quotes} loading={loading} />}
-      {tab === 'Scout'       && <TabScout     quotes={quotes} loading={loading} />}
+      {tab === 'Scout'       && <TabScout     quotes={quotes} />}
       {tab === 'Buy planner' && <TabPlanner   quotes={quotes} loading={loading} />}
       {tab === 'News'        && <TabNews      quotes={quotes} />}
     </div>
