@@ -325,7 +325,7 @@ export default function TabNews({ quotes }: { quotes: QuoteMap }) {
                     </span>
                   )}
                 </div>
-                <div style={{fontSize:13,color:'var(--text)',lineHeight:1.7,
+                <div style={{fontSize:13,lineHeight:1.7,
                   fontStyle: s.loading && !s.analysis ? 'italic' : 'normal',
                   color: s.loading && !s.analysis ? 'var(--text3)' : 'var(--text)'}}>
                   {!s.loaded && !s.analysis ? 'Fetching news and running analysis…'
