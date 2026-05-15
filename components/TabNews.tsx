@@ -39,34 +39,63 @@ function loadExtra():string[]                     { try{const s=localStorage.get
 function saveExtra(v:string[])                    { try{localStorage.setItem(NEWS_EXTRA_KEY,JSON.stringify(v))}catch{} }
 function loadWatchlist():{sym:string;name:string}[]{ try{const s=localStorage.getItem(WL_KEY);if(s)return JSON.parse(s)}catch{} return [] }
 
-// ── Article card — no raw URLs visible ──────────────────────────────────────
+// ── Article card — clean, no raw URLs, fully contained ────────────────────
 function ArticleCard({ a, index, total }: { a:Article; index:number; total:number }) {
-  const badge = srcBadge(a.source)
+  const badge  = srcBadge(a.source)
   const domain = cleanUrl(a.url)
   return (
     <a href={a.url} target="_blank" rel="noopener noreferrer"
-      style={{ display:'block', textDecoration:'none', padding:'10px 0',
-        borderBottom: index < total-1 ? '1px solid var(--border)' : 'none' }}>
-      <div style={{ display:'flex', alignItems:'flex-start', gap:10 }}>
-        {/* Source color strip */}
-        <div style={{ width:3, borderRadius:2, background:badge.fg, flexShrink:0, alignSelf:'stretch', minHeight:40 }} />
-        <div style={{ flex:1 }}>
-          <div style={{ fontSize:13, fontWeight:500, color:'var(--text)', lineHeight:1.5, marginBottom:4 }}>
+      style={{
+        display:'block', textDecoration:'none', padding:'10px 0',
+        borderBottom: index < total-1 ? '1px solid var(--border)' : 'none',
+        // Contain everything — no overflow outside the card
+        overflow:'hidden', minWidth:0,
+      }}>
+      <div style={{ display:'flex', alignItems:'flex-start', gap:10, minWidth:0 }}>
+        {/* Left color accent strip */}
+        <div style={{ width:3, borderRadius:2, background:badge.fg,
+          flexShrink:0, alignSelf:'stretch', minHeight:36 }} />
+        {/* Content — minWidth:0 is critical for text-overflow to work in flex */}
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{
+            fontSize:13, fontWeight:500, color:'var(--text)', lineHeight:1.5, marginBottom:4,
+            // Clamp to 2 lines max — no overflow
+            display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical',
+            overflow:'hidden',
+          }}>
             {a.headline}
           </div>
           {a.summary && (
-            <div style={{ fontSize:12, color:'var(--text2)', lineHeight:1.5, marginBottom:5 }}>
+            <div style={{
+              fontSize:12, color:'var(--text2)', lineHeight:1.5, marginBottom:5,
+              // Clamp summary to 2 lines
+              display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical',
+              overflow:'hidden',
+            }}>
               {a.summary}
             </div>
           )}
-          <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
-            <span style={{ fontSize:11, fontWeight:500, padding:'1px 8px', borderRadius:999,
-              background:badge.bg, color:badge.fg }}>{badge.label}</span>
+          {/* Footer row — source badge, domain, time, read link — all contained */}
+          <div style={{
+            display:'flex', alignItems:'center', gap:6, flexWrap:'nowrap',
+            overflow:'hidden', minWidth:0,
+          }}>
+            <span style={{
+              fontSize:10, fontWeight:600, padding:'1px 7px', borderRadius:999,
+              background:badge.bg, color:badge.fg, whiteSpace:'nowrap', flexShrink:0,
+            }}>{badge.label}</span>
             {domain && (
-              <span style={{ fontSize:11, color:'var(--text3)' }}>{domain}</span>
+              <span style={{
+                fontSize:10, color:'var(--text3)', whiteSpace:'nowrap',
+                overflow:'hidden', textOverflow:'ellipsis', flexShrink:1,
+              }}>{domain}</span>
             )}
-            <span style={{ fontSize:11, color:'var(--text3)' }}>{timeAgo(a.datetime)}</span>
-            <span style={{ fontSize:11, color:'#378add', marginLeft:'auto' }}>Read →</span>
+            <span style={{ fontSize:10, color:'var(--text3)', whiteSpace:'nowrap', flexShrink:0 }}>
+              {timeAgo(a.datetime)}
+            </span>
+            <span style={{ fontSize:10, color:'#378add', whiteSpace:'nowrap', flexShrink:0, marginLeft:'auto' }}>
+              Read →
+            </span>
           </div>
         </div>
       </div>
@@ -285,7 +314,8 @@ export default function TabNews({ quotes }: { quotes: QuoteMap }) {
 
           return (
             <div key={s.sym} style={{background:'var(--bg)',border:'1px solid var(--border)',
-              borderRadius:'var(--radius)',padding:20,display:'flex',flexDirection:'column',gap:0}}>
+              borderRadius:'var(--radius)',padding:20,display:'flex',flexDirection:'column',gap:0,
+              overflow:'hidden',minWidth:0}}>
 
               {/* Header */}
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:14}}>
