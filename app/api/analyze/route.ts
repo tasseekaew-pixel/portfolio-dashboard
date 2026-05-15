@@ -1,88 +1,97 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-export const revalidate = 1800 // cache 30 min
+export const revalidate = 900 // 15 min cache
 
 const GEMINI_KEY = process.env.GEMINI_API_KEY
+const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent'
 
 export async function POST(req: NextRequest) {
-  if (!GEMINI_KEY || GEMINI_KEY === 'your_gemini_api_key_here') {
-    return NextResponse.json(
-      { analysis: 'AI analysis unavailable — GEMINI_API_KEY not configured in Vercel environment variables.' },
-      { status: 200 }
-    )
+  if (!GEMINI_KEY) {
+    return NextResponse.json({ error: 'GEMINI_API_KEY not set' }, { status: 500 })
   }
 
   try {
-    const { sym, name, articles } = await req.json()
+    const body = await req.json()
+    // Support both single { sym, name, articles } and batch { stocks: [{sym,name,articles}] }
+    const stocks: { sym: string; name: string; articles: any[] }[] =
+      body.stocks || [{ sym: body.sym, name: body.name, articles: body.articles }]
 
-    if (!sym || !articles?.length) {
-      return NextResponse.json({ analysis: 'No recent news found for this symbol.' })
+    if (!stocks.length || !stocks[0].sym) {
+      return NextResponse.json({ results: {} })
     }
 
-    const prompt = `You are a concise financial analyst focused on long-term investing (buy-and-hold, not trading).
+    // Filter only stocks that have articles
+    const withNews = stocks.filter(s => s.articles?.length > 0)
+    if (!withNews.length) {
+      const results: Record<string,string> = {}
+      stocks.forEach(s => { results[s.sym] = 'No recent news found for this symbol.' })
+      return NextResponse.json({ results })
+    }
 
-Here are recent news headlines for ${name} (${sym}) from multiple financial sources:
+    // Single Gemini call for all stocks — much more efficient
+    const prompt = `You are a senior equity analyst focused on long-term investing (3-5 year buy-and-hold horizon).
 
-${articles.slice(0, 8).map((a: any, i: number) =>
-  `${i + 1}. [${a.source.split('/')[0].trim()}] ${a.headline}${a.summary ? '\n   ' + a.summary.slice(0, 120) : ''}`
-).join('\n\n')}
+Analyze the following stocks based on their recent news. For EACH stock write a 2-3 sentence analysis covering:
+1. What the news means for the company's long-term business fundamentals
+2. Whether it is bullish, bearish, or neutral for a long-term investor
+3. One specific opportunity or risk to watch over the next 6-12 months
 
-Write a 3-4 sentence analysis covering:
-1. The key theme across these news items and what it means for ${sym}'s long-term business fundamentals
-2. Whether this is bullish, bearish, or neutral for a patient long-term holder
-3. Any specific risk or opportunity worth monitoring over the next 6-12 months
+Be direct, specific, and insightful. No generic statements. No disclaimers. No bullet points.
 
-Be direct and specific. No bullet points. No financial advice disclaimers. No repetition of headlines.`
+${withNews.map(s => `
+--- ${s.sym} (${s.name}) ---
+${s.articles.slice(0,5).map((a,i) => `${i+1}. [${a.source}] ${a.headline}${a.summary ? ' — '+a.summary.slice(0,100) : ''}`).join('\n')}
+`).join('\n')}
 
-    // Use gemini-2.5-flash — free tier, 1500 req/day, no credit card
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`
+Respond ONLY with valid JSON (no markdown fences) in this exact format:
+{
+  ${withNews.map(s => `"${s.sym}": "your 2-3 sentence analysis here"`).join(',\n  ')}
+}`
 
-    const res = await fetch(url, {
+    const res = await fetch(`${GEMINI_URL}?key=${GEMINI_KEY}`, {
       method: 'POST',
-      headers: {
-        'Content-Type':    'application/json',
-        'x-goog-api-key':  GEMINI_KEY,
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          maxOutputTokens: 400,
-          temperature:     0.4,
-        },
+        generationConfig: { maxOutputTokens: 1200, temperature: 0.3 },
       }),
     })
 
     if (!res.ok) {
-      const errText = await res.text()
-      console.error(`Gemini ${res.status}:`, errText)
-
-      // Try to parse Gemini's error message for a friendlier response
-      let reason = `error ${res.status}`
-      try {
-        const errJson = JSON.parse(errText)
-        reason = errJson?.error?.message || reason
-      } catch {}
-
-      return NextResponse.json(
-        { analysis: `AI analysis unavailable: ${reason}. Headlines above are still live.` },
-        { status: 200 }
-      )
+      const err = await res.text()
+      console.error('Gemini error:', res.status, err)
+      const results: Record<string,string> = {}
+      stocks.forEach(s => { results[s.sym] = 'AI analysis temporarily unavailable.' })
+      return NextResponse.json({ results })
     }
 
     const data = await res.json()
-    const analysis = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim()
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || ''
 
-    if (!analysis) {
-      return NextResponse.json({ analysis: 'Gemini returned an empty response. Headlines above are still live.' })
+    // Parse JSON from Gemini response — strip any accidental markdown fences
+    let parsed: Record<string,string> = {}
+    try {
+      const clean = text.replace(/```json|```/g,'').trim()
+      parsed = JSON.parse(clean)
+    } catch {
+      // If JSON parse fails, try to extract per-symbol manually
+      for (const s of withNews) {
+        const re = new RegExp(`"${s.sym}"\\s*:\\s*"([^"]+)"`)
+        const match = text.match(re)
+        if (match) parsed[s.sym] = match[1]
+      }
     }
 
-    return NextResponse.json({ analysis })
+    // Fill in any missing symbols
+    const results: Record<string,string> = {}
+    stocks.forEach(s => {
+      results[s.sym] = parsed[s.sym] || (s.articles.length ? 'Analysis unavailable for this symbol.' : 'No recent news found.')
+    })
+
+    return NextResponse.json({ results })
 
   } catch (e: any) {
-    console.error('Analyze route error:', e)
-    return NextResponse.json(
-      { analysis: 'AI analysis temporarily unavailable. Headlines above are still live.' },
-      { status: 200 }
-    )
+    console.error('Analyze error:', e)
+    return NextResponse.json({ error: e.message }, { status: 500 })
   }
 }
