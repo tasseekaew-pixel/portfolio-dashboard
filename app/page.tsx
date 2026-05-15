@@ -5,7 +5,6 @@ import TabHoldings from '@/components/TabHoldings'
 import TabAllocation from '@/components/TabAllocation'
 import TabTrends from '@/components/TabTrends'
 import TabWatchlist from '@/components/TabWatchlist'
-import TabAnalysis from '@/components/TabAnalysis'
 import TabScout from '@/components/TabScout'
 import TabPlanner from '@/components/TabPlanner'
 import TabNews from '@/components/TabNews'
@@ -21,8 +20,8 @@ export type QuoteMap = Record<string, {
 }>
 
 const TABS = [
-  'Holdings', 'Allocation', 'Trends', 'Watchlist',
-  'Analysis', 'Scout', 'Buy planner', 'News'
+  'Holdings', 'Allocation', 'Trends', 'Watchlist & Analysis',
+  'Scout', 'Buy planner', 'News'
 ] as const
 type Tab = typeof TABS[number]
 
@@ -225,8 +224,7 @@ export default function Dashboard() {
       {tab === 'Holdings'    && <TabHoldings  quotes={quotes} loading={loading} />}
       {tab === 'Allocation'  && <TabAllocation quotes={quotes} loading={loading} />}
       {tab === 'Trends'      && <TabTrends    quotes={quotes} />}
-      {tab === 'Watchlist'   && <TabWatchlist  quotes={quotes} loading={loading} />}
-      {tab === 'Analysis'    && <TabAnalysis  quotes={quotes} loading={loading} />}
+      {tab === 'Watchlist & Analysis' && <TabWatchlist quotes={quotes} loading={loading} />}
       {tab === 'Scout'       && <TabScout     quotes={quotes} />}
       {tab === 'Buy planner' && <TabPlanner   quotes={quotes} loading={loading} />}
       {tab === 'News'        && <TabNews      quotes={quotes} />}
