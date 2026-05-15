@@ -114,8 +114,8 @@ export const SCOUT = [
 // ────────────────────────────────────────────────────────────
 //  ALL SYMBOLS (auto-derived — do not edit)
 // ────────────────────────────────────────────────────────────
+// SCOUT list is now dynamic (see /api/scout) — not needed here
 export const ALL_SYMBOLS = Array.from(new Set(
   HOLDINGS.map(h => h.sym)
     .concat(WATCHLIST.map(w => w.sym))
-    .concat(SCOUT.map(s => s.sym))
 ))
