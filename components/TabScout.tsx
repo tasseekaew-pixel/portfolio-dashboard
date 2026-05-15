@@ -40,7 +40,7 @@ function Spark({ sym, color }: { sym: string; color: string }) {
   return <div style={{ position:'relative', height:68, margin:'8px 0' }}><canvas ref={ref} /></div>
 }
 
-export default function TabScout({ quotes, loading }: { quotes: QuoteMap; loading: boolean }) {
+export default function TabScout({ quotes }: { quotes: QuoteMap }) {
   const [filter, setFilter] = useState('all')
   const [histories, setHistories] = useState<Record<string,number[]>>({})
 
